@@ -18,12 +18,17 @@ export type UserResponse = {
     hasMore: boolean;
   };
 };
-export type FacetResponse = { hobbies: Facet[]; nationalities: Facet[] };
+export type FacetResponse = {
+  hobbies: Facet[];
+  nationalities: Facet[];
+  ageRanges: Facet[];
+};
 export type SortField = "first_name" | "last_name" | "age" | "nationality";
 export type DirectoryFilters = {
   search: string;
   hobbies: string[];
   nationalities: string[];
+  ageRanges: string[];
   sortBy: SortField;
   sortDirection: "asc" | "desc";
 };

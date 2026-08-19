@@ -10,6 +10,7 @@ export function useDirectoryFilters() {
       search: params.get("search") || "",
       hobbies: params.getAll("hobby"),
       nationalities: params.getAll("nationality"),
+      ageRanges: params.getAll("ageRange"),
       sortBy: validSort.has(sort || "") ? (sort as SortField) : "first_name",
       sortDirection: params.get("sortDirection") === "desc" ? "desc" : "asc",
     };
@@ -21,6 +22,7 @@ export function useDirectoryFilters() {
       if (next.search) query.set("search", next.search);
       next.hobbies.forEach((v) => query.append("hobby", v));
       next.nationalities.forEach((v) => query.append("nationality", v));
+      next.ageRanges.forEach((v) => query.append("ageRange", v));
       if (next.sortBy !== "first_name") query.set("sortBy", next.sortBy);
       if (next.sortDirection !== "asc")
         query.set("sortDirection", next.sortDirection);
@@ -29,7 +31,7 @@ export function useDirectoryFilters() {
     [filters, setParams],
   );
   const toggle = useCallback(
-    (type: "hobbies" | "nationalities", value: string) => {
+    (type: "hobbies" | "nationalities" | "ageRanges", value: string) => {
       const current = filters[type];
       update({
         [type]: current.includes(value)
@@ -40,7 +42,7 @@ export function useDirectoryFilters() {
     [filters, update],
   );
   const clear = useCallback(
-    () => update({ search: "", hobbies: [], nationalities: [] }),
+    () => update({ search: "", hobbies: [], nationalities: [], ageRanges: [] }),
     [update],
   );
   return {
@@ -48,6 +50,9 @@ export function useDirectoryFilters() {
     update,
     toggle,
     clear,
-    activeCount: filters.hobbies.length + filters.nationalities.length,
+    activeCount:
+      filters.hobbies.length +
+      filters.nationalities.length +
+      filters.ageRanges.length,
   };
 }

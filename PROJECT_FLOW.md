@@ -25,6 +25,7 @@ This normalized model avoids hobby strings or JSON blobs, supports indexed hobby
 - Text: case-insensitive partial match on first name, last name, or the combined full name.
 - Nationalities: `IN (...)`, so selecting several means nationality A **or** B.
 - Hobbies: a grouped subquery counts distinct selected hobbies and requires the count to equal the number selected, so selecting several means hobby A **and** B.
+- Age ranges: each range is validated against the supported list and translated to an inclusive `BETWEEN` condition. Selecting several ranges means range A **or** B.
 - Categories combine with `AND`.
 - Sorting always adds `id` in the same direction as the final tie-breaker. Stable ordering prevents duplicates or omissions across offset pages.
 

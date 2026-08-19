@@ -9,6 +9,7 @@ export function toSearchParams(filters: DirectoryFilters, page?: number) {
   if (filters.search) params.set("search", filters.search);
   filters.hobbies.forEach((v) => params.append("hobby", v));
   filters.nationalities.forEach((v) => params.append("nationality", v));
+  filters.ageRanges.forEach((v) => params.append("ageRange", v));
   params.set("sortBy", filters.sortBy);
   params.set("sortDirection", filters.sortDirection);
   if (page) {

@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 
 import type { Facet } from "@/entities/user/model/types";
 import { Button } from "@/shared/ui/button";
@@ -7,11 +7,14 @@ import { Button } from "@/shared/ui/button";
 type Props = {
   hobbies: Facet[];
   nationalities: Facet[];
+  ageRanges: Facet[];
   selectedHobbies: string[];
   selectedNationalities: string[];
+  selectedAgeRanges: string[];
   loading: boolean;
   onToggleHobby: (v: string) => void;
   onToggleNationality: (v: string) => void;
+  onToggleAgeRange: (v: string) => void;
   onClear: () => void;
   mobileOpen: boolean;
   onClose: () => void;
@@ -21,14 +24,24 @@ function FacetGroup({
   items,
   selected,
   onToggle,
+  searchable = true,
 }: {
   title: string;
   items: Facet[];
   selected: string[];
   onToggle: (v: string) => void;
+  searchable?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [search, setSearch] = useState("");
   const optionsId = useId();
+  const searchId = useId();
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredItems = normalizedSearch
+    ? items.filter((item) =>
+        item.value.toLocaleLowerCase().includes(normalizedSearch),
+      )
+    : items;
 
   return (
     <section className="facet-group">
@@ -49,19 +62,46 @@ function FacetGroup({
           />
         </button>
       </h3>
-      <div id={optionsId} className="facet-options" hidden={!isExpanded}>
-        {items.map((item) => (
-          <label className="facet-option" key={item.value}>
+      <div id={optionsId} hidden={!isExpanded}>
+        {searchable && (
+          <label className="facet-search" htmlFor={searchId}>
+            <Search size={14} aria-hidden="true" />
             <input
-              type="checkbox"
-              checked={selected.includes(item.value)}
-              onChange={() => onToggle(item.value)}
+              id={searchId}
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search ${title.toLocaleLowerCase()}`}
+              aria-label={`Search ${title.toLocaleLowerCase()}`}
             />
-            <span className="custom-check" />
-            <span className="facet-name">{item.value}</span>
-            <span className="facet-count">{item.count}</span>
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label={`Clear ${title.toLocaleLowerCase()} search`}
+              >
+                <X size={13} />
+              </button>
+            )}
           </label>
-        ))}
+        )}
+        <div className="facet-options">
+          {filteredItems.map((item) => (
+            <label className="facet-option" key={item.value}>
+              <input
+                type="checkbox"
+                checked={selected.includes(item.value)}
+                onChange={() => onToggle(item.value)}
+              />
+              <span className="custom-check" />
+              <span className="facet-name">{item.value}</span>
+              <span className="facet-count">{item.count}</span>
+            </label>
+          ))}
+          {filteredItems.length === 0 && (
+            <p className="facet-empty">No matching options</p>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -69,7 +109,9 @@ function FacetGroup({
 
 export function FilterPanel(props: Props) {
   const count =
-    props.selectedHobbies.length + props.selectedNationalities.length;
+    props.selectedHobbies.length +
+    props.selectedNationalities.length +
+    props.selectedAgeRanges.length;
   return (
     <aside
       className={`filters-panel ${props.mobileOpen ? "filters-panel--open" : ""}`}
@@ -99,6 +141,13 @@ export function FilterPanel(props: Props) {
         </Button>
       )}
       <div className={props.loading ? "facets-loading" : ""}>
+        <FacetGroup
+          title="Age"
+          items={props.ageRanges}
+          selected={props.selectedAgeRanges}
+          onToggle={props.onToggleAgeRange}
+          searchable={false}
+        />
         <FacetGroup
           title="Nationality"
           items={props.nationalities}

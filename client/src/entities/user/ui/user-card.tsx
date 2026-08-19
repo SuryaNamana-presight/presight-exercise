@@ -1,7 +1,40 @@
+import { useEffect, useId, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
+
 import type { User } from "../model/types";
+
 export function UserCard({ user }: { user: User }) {
   const initials = `${user.first_name[0]}${user.last_name[0]}`;
+  const [isHobbyPopoverOpen, setIsHobbyPopoverOpen] = useState(false);
+  const hobbyPopoverRef = useRef<HTMLDivElement>(null);
+  const hobbyButtonRef = useRef<HTMLButtonElement>(null);
+  const hobbyPopoverId = useId();
+
+  useEffect(() => {
+    if (!isHobbyPopoverOpen) return;
+
+    const handleOutsideClick = (event: PointerEvent) => {
+      if (!hobbyPopoverRef.current?.contains(event.target as Node)) {
+        setIsHobbyPopoverOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsHobbyPopoverOpen(false);
+        hobbyButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isHobbyPopoverOpen]);
+
   return (
     <article className="user-card">
       <div className="avatar-wrap">
@@ -38,12 +71,36 @@ export function UserCard({ user }: { user: User }) {
                 </span>
               ))}
               {user.hobbies.length > 2 && (
-                <span
-                  className="hobby-more"
-                  title={user.hobbies.slice(2).join(", ")}
+                <div
+                  ref={hobbyPopoverRef}
+                  className={`hobby-more-wrap ${isHobbyPopoverOpen ? "hobby-more-wrap--open" : ""}`}
                 >
-                  +{user.hobbies.length - 2}
-                </span>
+                  <button
+                    ref={hobbyButtonRef}
+                    type="button"
+                    className="hobby-more"
+                    aria-expanded={isHobbyPopoverOpen}
+                    aria-controls={hobbyPopoverId}
+                    aria-label={`Show ${user.hobbies.length - 2} more hobbies for ${user.first_name}`}
+                    onClick={() => setIsHobbyPopoverOpen((current) => !current)}
+                  >
+                    +{user.hobbies.length - 2}
+                  </button>
+                  <div
+                    id={hobbyPopoverId}
+                    className="hobby-popover"
+                    role="dialog"
+                    aria-label={`Additional hobbies for ${user.first_name} ${user.last_name}`}
+                    aria-hidden={!isHobbyPopoverOpen}
+                  >
+                    <strong>More interests</strong>
+                    <div>
+                      {user.hobbies.slice(2).map((hobby) => (
+                        <span key={hobby}>{hobby}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           ) : (

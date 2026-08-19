@@ -115,10 +115,6 @@ export function LoginPage() {
           >
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
-          <div className="demo-note">
-            <strong>Demo access</strong>
-            <span>Credentials are pre-filled for your assessment.</span>
-          </div>
         </form>
       </section>
     </main>

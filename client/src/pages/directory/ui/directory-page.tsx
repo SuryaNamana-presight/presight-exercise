@@ -57,6 +57,7 @@ export function DirectoryPage() {
       requestFilters.search,
       requestFilters.hobbies,
       requestFilters.nationalities,
+      requestFilters.ageRanges,
     ],
     queryFn: ({ signal }) => fetchFacets(requestFilters, signal),
     placeholderData: keepPreviousData,
@@ -158,6 +159,12 @@ export function DirectoryPage() {
         </section>
         {activeCount > 0 && (
           <div className="active-filters">
+            {filters.ageRanges.map((value) => (
+              <button key={value} onClick={() => toggle("ageRanges", value)}>
+                Age {value}
+                <X size={13} />
+              </button>
+            ))}
             {filters.nationalities.map((v) => (
               <button key={v} onClick={() => toggle("nationalities", v)}>
                 {v}
@@ -174,13 +181,16 @@ export function DirectoryPage() {
         )}
         <div className="content-grid">
           <FilterPanel
+            ageRanges={facetsQuery.data?.ageRanges ?? []}
             hobbies={facetsQuery.data?.hobbies ?? []}
             nationalities={facetsQuery.data?.nationalities ?? []}
             selectedHobbies={filters.hobbies}
             selectedNationalities={filters.nationalities}
+            selectedAgeRanges={filters.ageRanges}
             loading={facetsQuery.isFetching}
             onToggleHobby={(v) => toggle("hobbies", v)}
             onToggleNationality={(v) => toggle("nationalities", v)}
+            onToggleAgeRange={(v) => toggle("ageRanges", v)}
             onClear={clear}
             mobileOpen={mobileFilters}
             onClose={() => setMobileFilters(false)}

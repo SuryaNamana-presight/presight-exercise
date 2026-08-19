@@ -1,5 +1,5 @@
 import { db } from "../db/database.js";
-import { buildFilteredUsers } from "./query.js";
+import { AGE_RANGES, buildFilteredUsers } from "./query.js";
 
 export function getUsers(filters) {
   const filtered = buildFilteredUsers(filters);
@@ -40,6 +40,7 @@ export function getFacets(filters) {
   // Self-excluding facets keep selected alternatives discoverable while all other filters remain active.
   const hobbyBase = buildFilteredUsers(filters, "hobby");
   const nationalityBase = buildFilteredUsers(filters, "nationality");
+  const ageBase = buildFilteredUsers(filters, "ageRange");
   const hobbies = db
     .prepare(
       `SELECT h.name AS value, COUNT(DISTINCT f.id) AS count FROM (${hobbyBase.sql}) f JOIN user_hobbies uh ON uh.user_id = f.id JOIN hobbies h ON h.id = uh.hobby_id GROUP BY h.id ORDER BY count DESC, value ASC LIMIT 20`,
@@ -50,5 +51,13 @@ export function getFacets(filters) {
       `SELECT f.nationality AS value, COUNT(*) AS count FROM (${nationalityBase.sql}) f GROUP BY f.nationality ORDER BY count DESC, value ASC LIMIT 20`,
     )
     .all(...nationalityBase.params);
-  return { hobbies, nationalities };
+  const ageRanges = AGE_RANGES.map((range) => ({
+    value: range.value,
+    count: db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM (${ageBase.sql}) f WHERE f.age BETWEEN ? AND ?`,
+      )
+      .get(...ageBase.params, range.min, range.max).count,
+  }));
+  return { hobbies, nationalities, ageRanges };
 }

@@ -57,6 +57,25 @@ test("multiple nationalities use match-any semantics", () => {
   );
 });
 
+test("multiple age ranges use match-any semantics", () => {
+  const result = getUsers(
+    parseUserQuery({ ageRange: ["10-20", "31-40"], limit: "50" }),
+  );
+
+  assert.ok(result.pagination.total > 0);
+  result.data.forEach((user) => {
+    const matchesSelectedRange =
+      (user.age >= 10 && user.age <= 20) || (user.age >= 31 && user.age <= 40);
+    assert.equal(matchesSelectedRange, true);
+  });
+});
+
+test("invalid age ranges are ignored", () => {
+  const filters = parseUserQuery({ ageRange: ["invalid", "21-30"] });
+
+  assert.deepEqual(filters.ageRanges, ["21-30"]);
+});
+
 test("text and selected filters affect facet counts", () => {
   const unfiltered = getFacets(parseUserQuery({}));
   const filtered = getFacets(

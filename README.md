@@ -51,7 +51,7 @@ Open `http://localhost:4000`. Database data is retained in the named `directory-
 - `GET /api/users`
 - `GET /api/users/facets`
 
-User query parameters: `search`, repeated `nationality`, repeated `hobby`, `sortBy`, `sortDirection`, `page`, and `limit`. Arrays can also be comma-separated. `sortBy` accepts `first_name`, `last_name`, `age`, or `nationality`; limit is capped at 50.
+User query parameters: `search`, repeated `nationality`, repeated `hobby`, repeated `ageRange` (for example `21-30`), `sortBy`, `sortDirection`, `page`, and `limit`. Arrays can also be comma-separated. Multiple age ranges use OR behavior. `sortBy` accepts `first_name`, `last_name`, `age`, or `nationality`; limit is capped at 50.
 
 Example:
 
