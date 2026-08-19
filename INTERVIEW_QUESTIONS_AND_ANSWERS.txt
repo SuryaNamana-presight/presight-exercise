@@ -1,0 +1,848 @@
+PEOPLESPACE FULL-STACK PROJECT
+PANEL INTERVIEW QUESTIONS AND ANSWERS
+=====================================
+
+Use this document to understand the reasoning behind the project. Avoid memorizing every answer word-for-word; explain the decisions naturally and connect them to the requirements.
+
+
+1. PROJECT INTRODUCTION
+=======================
+
+Q: Tell us about your project.
+
+A: I built PeopleSpace, a full-stack user-directory application for discovering people by name, nationality, and hobbies.
+
+The frontend uses React 19, TypeScript, Vite, TanStack Query, and TanStack Virtual. The backend uses Node.js, Express 5, and SQLite through better-sqlite3.
+
+Users can search by first or last name, select multiple nationalities and hobbies, choose sorting, and browse results using numbered pagination with a virtualized result list. Filter, sort, and page state are synchronized with the URL, so refreshing or sharing a link restores the same view.
+
+The backend supports deterministic pagination, AND filtering for hobbies, OR filtering for nationalities, and dynamic top-20 facet counts based on the current search and filters.
+
+I organized the client using Feature-Sliced Design, added responsive desktop and mobile layouts, implemented loading, empty and error states, wrote API behavior tests, and provided Docker configuration for deployment.
+
+
+Q: What was the most technically challenging part?
+
+A: The most challenging part was combining correct filtering, dynamic facet counts, deterministic pagination, and efficient virtual rendering.
+
+Multiple hobbies must use AND semantics, while nationalities use OR semantics. Facet counts must also respond to active search and filters without hiding all alternative choices.
+
+I solved the hobby requirement with a grouped SQL subquery and a HAVING COUNT(DISTINCT hobby) = numberOfSelectedHobbies condition. I made pagination deterministic by adding id as the final sorting tie-breaker.
+
+On the client, every filter combination becomes part of the React Query cache key. When filters change, pagination starts from page one and the virtualized list renders only the visible cards.
+
+
+2. ARCHITECTURE QUESTIONS
+=========================
+
+Q: Why did you use Feature-Sliced Design?
+
+A: Feature-Sliced Design provides clear ownership and dependency boundaries.
+
+I divided the client into:
+
+- app for bootstrapping and global providers
+- pages for page composition
+- widgets for large page sections
+- features for user interactions such as filters and sorting
+- entities for user-related models, API functions, and UI
+- shared for reusable utilities and UI primitives
+
+This prevents one large component or generic components folder from becoming difficult to maintain. Dependencies flow downward: pages can use widgets, features, entities, and shared modules, while shared modules know nothing about business features.
+
+
+Q: Why is the user card under entities?
+
+A: A user card represents the user business entity and could be reused on another page. It does not own directory filtering or pagination behavior, so it belongs to the user entity rather than a feature or page.
+
+
+Q: Why is the virtual list a widget?
+
+A: The directory list combines several entity cards with virtualization and result-list presentation. It represents a substantial page section rather than a small reusable primitive, so it fits the widget layer. Numbered page navigation is a separate feature.
+
+
+Q: Why did you separate routes, services, and database setup on the server?
+
+A: Each layer has one responsibility:
+
+- The router handles HTTP input and output.
+- Query parsing validates and normalizes parameters.
+- The service contains filtering and SQL behavior.
+- The database layer owns initialization and connection settings.
+- Seed logic owns test data generation.
+
+This separation makes the code easier to test and allows the transport or database implementation to change with limited impact.
+
+
+Q: Why didn’t you use one large directory component?
+
+A: A single component would mix URL management, network requests, filtering UI, sorting UI, virtualization, and card rendering. Separating these responsibilities improves readability, testing, and render isolation.
+
+
+3. REACT QUESTIONS
+==================
+
+Q: How does numbered pagination work?
+
+A: The current page is stored in the URL. React Query requests that page and includes the filters, sorting, and page number in its cache key. The API returns totalPages and total metadata, which the pagination component uses to render previous, next, numbered, and compact ellipsis controls. Changing a filter removes the page parameter and returns the user to page 1.
+
+
+Q: What is virtualization?
+
+A: Infinite scrolling controls how data is fetched, while virtualization controls how many DOM elements are rendered.
+
+Even if the application has loaded hundreds of users, the browser renders only visible cards and a small overscan area. A spacer element represents the total height, and visible cards are positioned at their calculated offsets.
+
+This reduces DOM size, layout calculations, memory usage, and rendering work.
+
+
+Q: Is infinite scrolling the same as virtualization?
+
+A: No. Infinite scrolling incrementally loads data automatically. Pagination loads a page after an explicit navigation action. Virtualization controls how many loaded records become DOM elements. This project uses numbered pagination together with virtualization.
+
+
+Q: Why use TanStack Query?
+
+A: TanStack Query manages server state well. It gives the project request caching, loading and error states, request cancellation signals, page-specific caching, retry handling, deduplication, and data-freshness configuration.
+
+Implementing all of that manually with useEffect would require more code and would be easier to get wrong.
+
+
+Q: What is the React Query cache key?
+
+A: The user query key contains the normalized filter state, such as search text, selected hobbies, nationalities, and sorting.
+
+Each unique view therefore has its own cache entry. When a filter changes, React Query sees a new key and retrieves the appropriate first page.
+
+
+Q: Why use placeholderData?
+
+A: It preserves the previous result or facet data while the next request is being fetched. That prevents the interface from collapsing or flashing an empty state every time a filter changes. A subtle updating indicator informs the user that fresh data is loading.
+
+
+Q: How do you prevent unnecessary search requests?
+
+A: I debounce the text input by 350 milliseconds. The visible input updates immediately, but the API and URL update only after the user pauses typing.
+
+React Query also passes an AbortSignal to fetch, allowing stale requests to be cancelled.
+
+
+Q: Why not debounce checkbox filters?
+
+A: Checkbox changes are deliberate, discrete actions. Users expect them to apply immediately. Text entry produces many intermediate values, so it benefits more from debouncing.
+
+
+Q: How is state restored from the URL?
+
+A: useSearchParams reads search, repeated hobby values, repeated nationality values, sort field, and direction.
+
+The hook converts these parameters into typed filter state. Every filter update rebuilds the query string. Since the URL is the persistent source for filter state, reloading or sharing the URL restores the same configuration.
+
+
+Q: Why not use a global store such as Redux?
+
+A: The application has two main kinds of state:
+
+- Server state, handled by TanStack Query
+- Shareable directory state, handled by the URL
+
+Local UI state such as the mobile drawer remains in the component. Redux would introduce another state source without solving a problem that these tools do not already handle.
+
+
+Q: How do you avoid unnecessary renders?
+
+A: The solution uses stable query keys, memoized request filters, focused components, virtual rendering, and local state ownership.
+
+I would only add React.memo after profiling demonstrates a meaningful problem. Memoizing everything can increase complexity and comparison overhead without improving performance.
+
+
+Q: Why React Router if there is one page?
+
+A: It provides URL query-state utilities and establishes a routing boundary for future pages. For this small project, routing remains intentionally lightweight.
+
+
+Q: What happens when filters change after several pages have loaded?
+
+A: The query key changes. React Query creates or restores the cache for the new filter combination, beginning from page one for a new query. Previous pages from the old key are not appended to the new results.
+
+
+4. BACKEND AND API QUESTIONS
+============================
+
+Q: Explain the users endpoint.
+
+A: GET /api/users accepts search, repeated hobby, repeated nationality, sortBy, sortDirection, page, and limit.
+
+It returns user records and pagination metadata containing the page, limit, total records, total pages, and hasMore.
+
+
+Q: Why include pagination metadata?
+
+A: The client needs to know whether another page exists. The total count also supports result summaries and empty states. Returning metadata keeps pagination rules centralized on the server.
+
+
+Q: How is text search implemented?
+
+A: Search is case-insensitive and checks first name, last name, and combined full name using LOWER(...) LIKE ?. The user input is escaped for SQL wildcard characters before being passed as a prepared-statement parameter.
+
+
+Q: How do you protect against SQL injection?
+
+A: All user-provided filter values use prepared-statement placeholders.
+
+SQL identifiers such as sort columns cannot use placeholders, so the requested sort field is checked against a strict allow-list. Only approved column names can be placed into the query.
+
+
+Q: How are invalid query parameters handled?
+
+A: Values are normalized and given safe defaults:
+
+- Invalid sort fields become first_name.
+- Only desc produces descending order; other values become ascending.
+- Page cannot be below one.
+- Limit is constrained between one and fifty.
+- Search input is trimmed and length-limited.
+- Duplicate array values are removed.
+
+
+Q: Why cap the page size?
+
+A: Without a cap, a client could request the entire database in one response, increasing database work, response size, memory use, and network latency. The maximum protects the service while still allowing practical client page sizes.
+
+
+Q: Why REST rather than GraphQL?
+
+A: The domain has a small, clearly defined read API. REST is simpler to implement, document, cache, and operate here.
+
+GraphQL could help if the application had many clients requesting different nested projections, but it would add unnecessary schema and resolver complexity for this exercise.
+
+
+Q: Why Express?
+
+A: Express is lightweight, mature, and appropriate for a small REST service. It allows the project to expose clear middleware, routing, error-handling, and static-serving boundaries without a large framework footprint.
+
+
+Q: Why better-sqlite3?
+
+A: It offers a simple prepared-statement API and strong performance for a local SQLite application. Its synchronous calls simplify query composition.
+
+Synchronous database work would be reconsidered for a high-concurrency service with long-running operations, but SQLite queries here are local, indexed, and short.
+
+
+Q: Why is the backend written in JavaScript rather than TypeScript?
+
+A: The server is small and uses modern ES modules, while strict TypeScript is used on the more complex client.
+
+If developing this further, I would migrate the server to TypeScript and share validated API schemas between both sides. That would reduce contract drift. This is one improvement I would prioritize.
+
+
+5. DATABASE AND SQL QUESTIONS
+=============================
+
+Q: Explain the database schema.
+
+A: There are three tables:
+
+- users contains core user fields.
+- hobbies contains unique normalized hobby names.
+- user_hobbies implements the many-to-many relationship.
+
+The join table uses (user_id, hobby_id) as its composite primary key, preventing duplicate hobby assignments.
+
+
+Q: Why not store hobbies as JSON or comma-separated text?
+
+A: That would make exact matching, counts, joins, constraints, and indexing more difficult.
+
+A normalized many-to-many model supports efficient filtering, correct top-hobby counts, referential integrity, and prevents repeated hobby strings.
+
+
+Q: How does multiple-hobby filtering work?
+
+A: The requirement says a user must contain all selected hobbies.
+
+The query finds user IDs associated with the selected hobby names, groups by user ID, and applies:
+
+HAVING COUNT(DISTINCT selected.name) = ?
+
+The parameter is the number of selected hobbies. A user qualifies only if every selected hobby was found.
+
+
+Q: Why use DISTINCT in the hobby count?
+
+A: It protects the logic from duplicate join rows. The composite key already prevents duplicate user-hobby assignments, but DISTINCT makes the query’s intention and correctness explicit.
+
+
+Q: How do multiple nationalities work?
+
+A: A person has one nationality in this model. Therefore, multiple selected values use nationality IN (?, ?, ...). That gives OR behavior: nationality A or nationality B.
+
+
+Q: How do search, hobby, and nationality filters combine?
+
+A: Different filter categories are connected with SQL AND:
+
+text condition
+AND selected nationality condition
+AND selected hobby condition
+
+Within nationality selection, values use OR semantics. Within hobby selection, values use AND semantics.
+
+
+Q: How is sorting deterministic?
+
+A: The selected sort column is the primary sort key, followed by id as a final tie-breaker:
+
+ORDER BY age ASC, id ASC
+
+Many users may share the same age or name. Without the ID tie-breaker, SQLite could return equal values in different orders on separate page requests, causing duplicates or missing users.
+
+
+Q: Why use the same direction for the ID tie-breaker?
+
+A: It produces a consistent total ordering aligned with the selected direction. The main correctness requirement is that the direction remains stable across every page request.
+
+
+Q: What indexes were added?
+
+A: Indexes support first and last name ordering, nationality filtering, age sorting, and hobby-to-user lookup through the join table.
+
+The exact benefit should be checked using EXPLAIN QUERY PLAN and realistic data before adding more indexes, because every index increases storage and write cost.
+
+
+Q: Does LOWER(name) LIKE '%text%' fully use the name index?
+
+A: Usually not, especially because of the leading wildcard and LOWER expression.
+
+For this 2,400-row local dataset, the approach is adequate. At much larger scale, I would use SQLite FTS5, a normalized search column, prefix search, or a dedicated search service depending on requirements.
+
+
+Q: What is WAL mode?
+
+A: WAL means write-ahead logging. Changes are written to a separate log before being merged into the main database.
+
+It generally improves concurrency because readers can continue while a writer is active. This project is read-heavy, so WAL is a good practical setting.
+
+
+Q: What does synchronous=NORMAL do?
+
+A: It reduces some disk synchronization overhead while preserving good durability for typical application use. It is a performance-versus-maximum-durability choice.
+
+For financial or safety-critical data, I would assess whether FULL synchronization is required.
+
+
+6. FACETED FILTERING QUESTIONS
+==============================
+
+Q: What are facets?
+
+A: Facets are filter values combined with counts, such as { "value": "Reading", "count": 182 }. They help users understand available filtering options and predict how many results a choice may produce.
+
+
+Q: How do facet counts update?
+
+A: The client requests /api/users/facets whenever search, hobby selections, or nationality selections change.
+
+The backend recalculates top hobbies and nationalities from the currently relevant user set rather than using global counts.
+
+
+Q: What does self-excluding facet counting mean?
+
+A: While calculating hobby options, the backend applies the search and nationality filters but excludes the currently selected hobby restriction.
+
+While calculating nationality options, it applies search and hobby restrictions but excludes the selected nationality restriction.
+
+This keeps alternative options discoverable. Otherwise, selecting one nationality could cause every other nationality option to disappear immediately.
+
+
+Q: Does self-excluding behavior satisfy “current filter state”?
+
+A: Yes, it is a standard faceted-search interpretation: every facet reflects all active constraints except its own category.
+
+If the product owner instead expects strict post-filter counts, I can change the service to retain the same-category filters. This is an important behavior to confirm with product requirements.
+
+
+Q: Why return only the top 20?
+
+A: It follows the requirement and keeps the sidebar manageable. The query sorts by count descending and then by value ascending for deterministic handling of equal counts.
+
+
+7. PERFORMANCE QUESTIONS
+========================
+
+Q: What did you do for frontend performance?
+
+A: The primary improvements are virtualized rendering, incremental page fetching, debounced search, request cancellation, React Query caching and deduplication, lazy-loaded avatars, a small overscan window, previous data retained during background refresh, and production minification with hashed assets.
+
+
+Q: What did you do for backend performance?
+
+A: I used SQLite indexes, prepared statements, a normalized hobby relation, bounded page sizes, aggregate queries rather than per-user hobby requests, WAL mode, and deterministic database-side sorting.
+
+The implementation avoids an N+1 request or query pattern for loading hobbies.
+
+
+Q: Is offset pagination scalable?
+
+A: Offset pagination is simple and works well for this small, mostly static dataset.
+
+At very large offsets, the database must still traverse skipped rows. For a large or frequently changing dataset, I would use cursor or keyset pagination based on the selected sort value and ID.
+
+
+Q: How would cursor pagination work with different sorts?
+
+A: The cursor would contain both the last sort value and last ID.
+
+For ascending age, the next-page condition would conceptually be:
+
+age > lastAge
+OR (age = lastAge AND id > lastId)
+
+The cursor should be encoded and treated as opaque by the client. Similar conditions would be generated for other sort fields and descending order.
+
+
+Q: How would you measure performance rather than assume it?
+
+A: On the client, I would use React Profiler, the browser Performance panel, Lighthouse, network request timing, and DOM node counts during long scrolling.
+
+On the backend, I would use request latency percentiles, SQLite EXPLAIN QUERY PLAN, query timing, CPU and memory measurements, and load testing with representative filters and page depths.
+
+
+8. UI, UX, AND ACCESSIBILITY QUESTIONS
+=======================================
+
+Q: What makes the interface user-friendly?
+
+A: The design provides a clear visual hierarchy, a prominent search field, visible result counts, filter counts, removable active-filter chips, clear-all behavior, immediate sorting controls, a desktop sidebar and mobile drawer, skeleton loading, background-update feedback, helpful empty and retryable error states, and avatar fallbacks.
+
+
+Q: How is the UI responsive?
+
+A: Desktop uses a filter sidebar and result column. Below the mobile breakpoint, filters move into a slide-in drawer, search stays full-width, and filtering and sorting remain reachable above the results.
+
+Card spacing, avatar size, text size, and list height also adapt for smaller screens.
+
+
+Q: What accessibility measures were included?
+
+A: The project uses semantic header, main, section, aside, and article elements; associated checkbox labels; accessible names for icon-only buttons; native inputs, buttons, and selects; loading status semantics; text alternatives and avatar fallbacks; visible focus treatment; sufficient contrast; and reduced-motion support.
+
+Before a production release, I would additionally run axe, Lighthouse accessibility checks, and keyboard and screen-reader testing.
+
+
+Q: Why use skeletons instead of only a spinner?
+
+A: Skeletons communicate the expected page structure and reduce perceived loading time. A spinner is better for small background operations such as loading the next page.
+
+
+Q: What happens if an avatar fails?
+
+A: Initials are rendered behind the image. If image loading fails, the image is hidden and the initials remain visible. This prevents a broken-image icon from damaging the card layout.
+
+
+Q: Why show only two hobbies?
+
+A: It follows the project requirement and keeps card heights predictable. Remaining hobbies are summarized as +n, with the additional values available as supporting information.
+
+
+9. TESTING QUESTIONS
+====================
+
+Q: What did you test?
+
+A: Automated server tests cover deterministic cross-page results without duplicate IDs, AND semantics for multiple hobbies, OR semantics for multiple nationalities, and facet changes when filters change.
+
+Strict TypeScript checking validates client contracts, and the production build confirms that the complete frontend compiles and bundles successfully.
+
+
+Q: Why focus tests on those cases?
+
+A: They contain the highest business and correctness risk. Rendering a button is straightforward, but incorrect hobby semantics or unstable pagination could silently return the wrong users.
+
+
+Q: What tests would you add next?
+
+A: I would add query-validation unit tests, full-name and wildcard search tests, sort tests for all fields and directions, pagination boundary tests, facet-count integration tests against known fixtures, React component tests, keyboard accessibility tests, Playwright end-to-end tests, mobile viewport tests, and API load tests.
+
+
+Q: Unit, integration, or E2E—which matters most here?
+
+A: All three have different value.
+
+- Unit tests validate parsing and small helpers.
+- Integration tests validate real SQL and filtering semantics.
+- E2E tests validate the user journey from URL through UI to API.
+
+For this project, database integration tests are especially important because much of the business logic lives in SQL.
+
+
+10. DOCKER AND DEPLOYMENT QUESTIONS
+===================================
+
+Q: Explain the Dockerfile.
+
+A: It uses a multi-stage build.
+
+The build stage installs dependencies and produces the optimized Vite client. The runtime stage installs only production server dependencies, copies the server and compiled client, creates the data directory, switches to a non-root user, and starts Express.
+
+This keeps build tooling out of the runtime image.
+
+
+Q: Why use a Docker volume?
+
+A: The SQLite file lives in a named volume. Containers are replaceable, but the volume preserves data across container restarts and rebuilds.
+
+
+Q: Why does Express serve the frontend in production?
+
+A: It keeps local production deployment simple: one container and one exposed port serve both the static client and API. In a larger production environment, static files could be served through a CDN or reverse proxy.
+
+
+Q: Why run as a non-root Docker user?
+
+A: It follows least-privilege principles. If the application is compromised, the process has fewer permissions inside the container.
+
+
+Q: What does the health check do?
+
+A: Docker periodically requests /api/health. This confirms that the HTTP server is responding and allows orchestration tooling to distinguish a running process from a healthy application.
+
+
+11. SECURITY QUESTIONS
+======================
+
+Q: What security measures exist?
+
+A: The project includes parameterized SQL, strict sort allow-listing, input length and pagination limits, a small JSON request limit, disabled X-Powered-By, non-root Docker execution, and no HTML injection from user fields.
+
+For a public production system, I would also add authentication, authorization, rate limiting, secure headers through Helmet, stricter CORS, structured validation, monitoring, and dependency scanning in CI.
+
+
+Q: Why is unrestricted CORS acceptable here?
+
+A: It simplifies local development for an assessment application. In production I would allow only known frontend origins or serve the frontend and API from the same origin, where CORS may not be required.
+
+
+Q: Could someone manipulate sortBy to inject SQL?
+
+A: No user-provided column name is trusted. The value is checked against a fixed set of allowed fields. An invalid value falls back to first_name.
+
+
+Q: What about denial-of-service through large queries?
+
+A: The page-size cap and search-length cap reduce request cost. In production, I would additionally use rate limiting, request timeouts, reverse-proxy limits, monitoring, and possibly cached popular facet queries.
+
+
+12. SCENARIO-BASED QUESTIONS
+============================
+
+Q: The directory grows from 2,400 to 20 million users. What changes?
+
+A: I would:
+
+1. Move from SQLite to PostgreSQL or another production database.
+2. Replace offset pagination with keyset pagination.
+3. Add full-text or dedicated search infrastructure.
+4. Review indexes using real query plans.
+5. Cache frequently used facets.
+6. Consider precomputed or approximate facet counts.
+7. Add read replicas if necessary.
+8. Introduce monitoring and load testing.
+9. Serve static assets through a CDN.
+
+I would make these changes based on measured bottlenecks rather than replacing everything prematurely.
+
+
+Q: Users report duplicates while infinite scrolling. How would you investigate?
+
+A: I would check whether sorting has a unique final tie-breaker, whether filters changed while an old request was in flight, whether the next page was requested more than once, whether the database changed between offset-page requests, and whether the client appended pages from different query keys.
+
+The current project mitigates these with ID tie-breaking, filter-specific React Query keys, cancellation signals, and isFetchingNextPage protection. For frequently changing data, cursor pagination would be more robust.
+
+
+Q: Search feels slow. What would you do?
+
+A: I would measure whether the delay is frontend rendering, network latency, or database search.
+
+I would verify debounce behavior, inspect request cancellation, use EXPLAIN QUERY PLAN, consider FTS5 or a normalized search field, cache repeated searches, reduce response payload, and confirm virtual rendering is active.
+
+I would not simply increase the debounce because that can hide backend latency while making the UI feel less responsive.
+
+
+Q: Selecting one nationality hides all others. What is the likely cause?
+
+A: The nationality facet query probably includes the selected nationality filter while calculating its own alternatives.
+
+I would use self-excluding facet logic: retain text and hobby filters, but omit the nationality filter when calculating nationality options.
+
+
+Q: Product wants facet counts after applying every filter, including the same category. What would you change?
+
+A: I would change from self-excluding to strict counts. The query builder already supports category exclusion, so I would stop excluding the current facet category.
+
+I would confirm the desired interaction because strict counts can make alternatives disappear, while self-excluding counts improve discovery.
+
+
+Q: Product wants hobbies to use OR instead of AND. What changes?
+
+A: I would replace the grouped HAVING logic with an existence or IN query that accepts any selected hobby. I would also update tests and user-facing descriptions because this changes a core business rule.
+
+
+Q: A filter URL contains an invalid sort field. What happens?
+
+A: The backend falls back to an approved default. Ideally, the client also normalizes the URL so the visible state matches the effective backend behavior.
+
+
+Q: An API request fails after three pages have loaded. What should happen?
+
+A: I would keep the already loaded data visible, show an inline pagination error, and provide a retry action near the end of the list.
+
+The current general error state is strongest for initial loading; a dedicated next-page error state would be a valuable enhancement.
+
+
+Q: A user changes filters during an in-flight request. What happens?
+
+A: The filter-based query key changes and the fetch receives an abort signal. Results from the old key remain isolated from the new key, preventing data from different filters from being combined.
+
+
+Q: The database is frequently updated while users browse. What would you change?
+
+A: Offset pagination can shift when rows are inserted or removed. I would move to cursor pagination and, if exact consistency is required, consider snapshot semantics or a stable dataset version.
+
+
+Q: Two users have identical names, ages, and nationalities. How is sorting stable?
+
+A: Their IDs are different. Since ID is the final sorting tie-breaker, the ordering remains deterministic.
+
+
+Q: A user selects ten hobbies and receives no results. Is that a bug?
+
+A: It may be correct because hobby selection uses AND semantics. The UI should explain the semantics and provide removable chips or a clear-all action. Product analytics could reveal whether users misunderstand this behavior.
+
+
+Q: Browser memory keeps increasing during scrolling. What would you do?
+
+A: Virtualization limits DOM nodes, but React Query still retains loaded page data in memory.
+
+For extremely long sessions, I could limit retained pages, use TanStack Query’s maximum-page options, restore earlier pages on reverse scrolling, reduce payload fields, or use cursor pagination. I would profile before selecting a strategy.
+
+
+Q: Avatar hosting becomes slow or unreliable. What would you do?
+
+A: I would use a controlled image CDN, optimized image sizes, caching, WebP or AVIF, and server-provided placeholders. The current initials fallback preserves usability when loading fails.
+
+
+Q: The panel asks you to add user creation. How would you design it?
+
+A: I would add a create-user feature in the FSD feature layer, validated form input, a transactional server operation, a user insert followed by hobby relationship inserts, appropriate uniqueness and domain constraints, cache invalidation for lists and facets, and authorization and audit fields in a real company system.
+
+I would use optimistic updates only if failure rollback is safe.
+
+
+Q: Two requests create the same new hobby simultaneously. How do you handle it?
+
+A: The database’s unique constraint on hobby name should be the final authority. I would use an insert-or-ignore or upsert strategy inside a transaction and then query the hobby ID.
+
+
+Q: Product wants real-time updates. What would you do?
+
+A: I would first clarify whether users need immediate updates or periodic freshness.
+
+For modest needs, polling or refetch-on-focus may be enough. For true real-time behavior, I could add Server-Sent Events or WebSockets and update or invalidate affected React Query caches. Cursor pagination would help avoid offset shifts.
+
+
+Q: How would you internationalize the application?
+
+A: I would move strings into translation resources, add an i18n library, use locale-aware number and name formatting, support RTL layout, avoid fixed-width assumptions, localize nationality display values, test longer translations, and keep URL keys stable while translating labels.
+
+
+Q: How would you support dark mode?
+
+A: The CSS already centralizes major colors as variables. I would define an alternate token set under a dark-theme selector, persist the preference, respect prefers-color-scheme, and test contrast and image treatment.
+
+
+Q: The CI build fails but the local build passes. What would you inspect?
+
+A: I would compare Node and npm versions, lockfile usage, case-sensitive import paths, environment variables, native dependency build support, and cached artifacts.
+
+CI should use npm ci, the committed lockfile, and the same Node version as production.
+
+
+Q: Docker restarts and data disappears. What would you inspect?
+
+A: I would confirm that DATABASE_PATH points to the mounted directory and that the named volume is attached. Writing the database only inside the container filesystem would lose it when the container is replaced.
+
+
+13. IMPROVEMENT AND TRADE-OFF QUESTIONS
+=======================================
+
+Q: What would you improve if you had more time?
+
+A: My priorities would be:
+
+1. Move the server to TypeScript.
+2. Add Zod validation and a shared API contract.
+3. Add Playwright E2E and component accessibility tests.
+4. Add a dedicated next-page error state.
+5. Replace remote demo avatars with a controlled image service.
+6. Add structured logging and request metrics.
+7. Use cursor pagination for a mutable or much larger dataset.
+8. Add FTS5 for larger-scale text search.
+9. Enforce FSD boundaries with ESLint.
+10. Add CI for type-checking, testing, building, and container scanning.
+
+I would prioritize these based on production risk and expected scale.
+
+
+Q: What compromises did you make?
+
+A: The main compromises are offset pagination because the dataset is small and static, JavaScript on the server instead of end-to-end TypeScript, generated demonstration data rather than an external source, basic integration coverage instead of full E2E coverage, and external avatar URLs and web fonts for demonstration styling.
+
+These are reasonable for the exercise, but I can clearly identify how I would evolve them for production.
+
+
+Q: What would you not change?
+
+A: I would keep normalized hobby data, server-side filtering and sorting, deterministic ordering, URL-backed view state, virtual rendering, prepared statements, and clear architecture boundaries. Those choices remain useful as the application grows.
+
+
+14. JAVASCRIPT AND TYPESCRIPT FOLLOW-UPS
+========================================
+
+Q: What is the difference between useMemo and useCallback?
+
+A: useMemo memoizes a computed value. useCallback memoizes a function reference. Both should be used when stable references or expensive calculations provide a measurable benefit, not automatically everywhere.
+
+
+Q: What causes a React component to re-render?
+
+A: Changes to its state, context, consumed external-store values, parent rendering, or props can cause rendering. React may also render components during development checks such as Strict Mode.
+
+
+Q: What is a stale closure?
+
+A: A function captures values from the render in which it was created. If dependency arrays are incorrect, it may continue using old state or props. Correct hook dependencies, functional state updates, or refs can address different stale-closure situations.
+
+
+Q: Why use strict TypeScript?
+
+A: Strict mode catches nullable values, invalid property access, incompatible callbacks, and contract mismatches earlier. It provides particular value around API types and component props.
+
+
+Q: What is an AbortSignal?
+
+A: It allows an asynchronous operation such as fetch to be cancelled. When a query becomes irrelevant, cancellation reduces wasted work and prevents stale requests from continuing unnecessarily.
+
+
+15. BEHAVIORAL QUESTIONS CONNECTED TO THE PROJECT
+=================================================
+
+Q: How did you approach an unclear requirement?
+
+A: I identified the observable behavior and encoded it in one place.
+
+For dynamic facets, I chose self-excluding facet behavior because it preserves alternative discovery while respecting all other filters. I documented that decision and made the query builder flexible enough to change it if product expectations differ.
+
+
+Q: How did you prioritize your work?
+
+A: I prioritized correctness risks first:
+
+1. Data model
+2. Filtering semantics
+3. Deterministic pagination
+4. Dynamic facets
+5. URL state
+6. Numbered pagination and virtualization
+7. Responsive UI and failure states
+8. Tests, Docker, and documentation
+
+A visually polished interface is not useful if it returns incorrect results.
+
+
+Q: How do you respond to review feedback?
+
+A: I first clarify the user or engineering outcome behind the feedback. Then I verify the behavior, discuss trade-offs when necessary, make the smallest coherent change, and add tests if the feedback exposes a missing invariant.
+
+
+Q: Tell us about a decision you can defend but would reconsider.
+
+A: Offset pagination is appropriate for the current static 2,400-user dataset because it is simple and supports direct page metadata. I would reconsider it immediately if the dataset became large or frequently mutated, because cursor pagination would provide better performance and stability.
+
+
+16. QUICK-FIRE QUESTIONS
+========================
+
+Q: Why SQLite?
+A: Easy local setup, true persistence, transactional behavior, and enough capability for this assessment.
+
+Q: Why 2,400 users?
+A: Large enough to demonstrate numbered pagination, facet counts, and virtualization without making local setup heavy.
+
+Q: Why page size 30?
+A: It balances request overhead, payload size, and smooth prefetching.
+
+Q: Why overscan seven rows?
+A: It reduces blank flashes during rapid scrolling while retaining a small DOM.
+
+Q: Why URL query parameters?
+A: They make state refresh-safe, bookmarkable, shareable, and browser-navigation friendly.
+
+Q: Why immutable hashed assets?
+A: Their filenames change when their contents change, so they can be cached for a long duration safely.
+
+Q: Why a normalized join table?
+A: Correct many-to-many relationships, efficient queries, referential integrity, and accurate aggregation.
+
+Q: Why include total count?
+A: It supports result feedback and pagination metadata, although it can become expensive at extreme scale.
+
+Q: Why use native checkbox elements?
+A: They provide established keyboard and accessibility behavior.
+
+Q: What is the source of truth?
+A: SQLite is the persisted source of user data. The URL is the source of truth for directory view state, and React Query manages cached server state.
+
+
+17. POSSIBLE LIVE-CODING TASKS
+==============================
+
+Be ready to perform these tasks:
+
+1. Add a minimum and maximum age filter.
+2. Add an endpoint to fetch one user by ID.
+3. Change hobby filtering from AND to OR.
+4. Add a new sort field.
+5. Add cursor pagination.
+6. Write a search test.
+7. Fix duplicate infinite-scroll requests.
+8. Extract a hook from the directory page.
+9. Add an error boundary.
+10. Add a loading state for facet filters.
+11. Add a reset-sort button.
+12. Add server-side schema validation.
+13. Explain an SQL query using EXPLAIN QUERY PLAN.
+14. Add a user-creation transaction.
+15. Write a responsive component test.
+
+During live coding, explain your approach like this:
+
+“I’ll first identify the owning Feature-Sliced Design layer, update the type or contract, implement the backend behavior if necessary, connect the client, and finally add a focused test.”
+
+
+18. TWO-MINUTE CLOSING EXPLANATION
+==================================
+
+The central design principle of PeopleSpace is that the server owns data correctness while the client owns interaction and presentation.
+
+SQLite is the source of truth. The API performs filtering, aggregation, sorting, and pagination. It uses parameterized queries, bounded inputs, normalized relations, AND hobby semantics, OR nationality semantics, and deterministic ID tie-breaking.
+
+On the frontend, URL parameters own shareable directory and page state, while TanStack Query owns remote server state. Virtualization limits DOM work, while numbered controls provide predictable navigation. Feature-Sliced Design separates app setup, page composition, widgets, user-facing features, business entities, and shared primitives.
+
+I also treated loading, empty, error, mobile, accessibility, testing, Docker persistence, and documentation as part of the solution rather than optional additions.
+
+For a larger production system, I would evolve the implementation with server-side TypeScript, schema validation, cursor pagination, full-text search, stronger automated testing, metrics, and security controls. The existing architecture gives those changes clear integration points.
+
+
+END OF DOCUMENT
+===============
