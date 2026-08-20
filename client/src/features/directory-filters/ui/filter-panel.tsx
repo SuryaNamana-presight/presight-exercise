@@ -19,6 +19,7 @@ type Props = {
   mobileOpen: boolean;
   onClose: () => void;
 };
+
 function FacetGroup({
   title,
   items,

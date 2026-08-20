@@ -4,6 +4,7 @@ import type {
   FacetResponse,
   UserResponse,
 } from "../model/types";
+
 export function toSearchParams(filters: DirectoryFilters, page?: number) {
   const params = new URLSearchParams();
   if (filters.search) params.set("search", filters.search);
@@ -18,11 +19,13 @@ export function toSearchParams(filters: DirectoryFilters, page?: number) {
   }
   return params;
 }
+
 export const fetchUsers = (
   filters: DirectoryFilters,
   page: number,
   signal?: AbortSignal,
 ) =>
   apiGet<UserResponse>(`/api/users?${toSearchParams(filters, page)}`, signal);
+
 export const fetchFacets = (filters: DirectoryFilters, signal?: AbortSignal) =>
   apiGet<FacetResponse>(`/api/users/facets?${toSearchParams(filters)}`, signal);

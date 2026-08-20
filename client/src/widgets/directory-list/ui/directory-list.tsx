@@ -2,7 +2,9 @@ import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { User } from "@/entities/user/model/types";
 import { UserCard } from "@/entities/user/ui/user-card";
+
 type Props = { users: User[] };
+
 export function DirectoryList({ users }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -11,6 +13,7 @@ export function DirectoryList({ users }: Props) {
     estimateSize: () => 132,
     overscan: 7,
   });
+
   const virtualItems = virtualizer.getVirtualItems();
   return (
     <div

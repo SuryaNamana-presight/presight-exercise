@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { DirectoryFilters, SortField } from "@/entities/user/model/types";
+
 const validSort = new Set(["first_name", "last_name", "age", "nationality"]);
+
 export function useDirectoryFilters() {
   const [params, setParams] = useSearchParams();
   const filters = useMemo<DirectoryFilters>(() => {
@@ -15,6 +17,7 @@ export function useDirectoryFilters() {
       sortDirection: params.get("sortDirection") === "desc" ? "desc" : "asc",
     };
   }, [params]);
+
   const update = useCallback(
     (patch: Partial<DirectoryFilters>) => {
       const next = { ...filters, ...patch };
@@ -30,6 +33,7 @@ export function useDirectoryFilters() {
     },
     [filters, setParams],
   );
+
   const toggle = useCallback(
     (type: "hobbies" | "nationalities" | "ageRanges", value: string) => {
       const current = filters[type];
@@ -41,10 +45,12 @@ export function useDirectoryFilters() {
     },
     [filters, update],
   );
+
   const clear = useCallback(
     () => update({ search: "", hobbies: [], nationalities: [], ageRanges: [] }),
     [update],
   );
+
   return {
     filters,
     update,

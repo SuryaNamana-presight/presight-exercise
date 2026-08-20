@@ -7,6 +7,7 @@ export type User = {
   nationality: string;
   hobbies: string[];
 };
+
 export type Facet = { value: string; count: number };
 export type UserResponse = {
   data: User[];
@@ -18,6 +19,7 @@ export type UserResponse = {
     hasMore: boolean;
   };
 };
+
 export type FacetResponse = {
   hobbies: Facet[];
   nationalities: Facet[];

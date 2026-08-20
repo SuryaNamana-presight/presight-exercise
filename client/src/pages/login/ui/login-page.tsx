@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail, UsersRound } from "lucide-react";
 import { useAuth } from "@/features/auth/model/auth-context";
 import { Button } from "@/shared/ui/button";
+
 export function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("demo@peoplespace.com");

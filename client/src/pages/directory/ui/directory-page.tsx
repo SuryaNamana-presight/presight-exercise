@@ -21,6 +21,7 @@ export function DirectoryPage() {
     1,
     Number.parseInt(searchParams.get("page") || "1", 10) || 1,
   );
+
   const setPage = useCallback(
     (nextPage: number) => {
       const next = new URLSearchParams(searchParams);
@@ -35,6 +36,7 @@ export function DirectoryPage() {
     },
     [searchParams, setSearchParams],
   );
+
   const [search, setSearch] = useState(filters.search);
   const [mobileFilters, setMobileFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(search);

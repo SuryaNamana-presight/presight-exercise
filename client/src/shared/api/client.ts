@@ -6,6 +6,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
 export async function apiGet<T>(
   path: string,
   signal?: AbortSignal,
@@ -26,6 +27,7 @@ export async function apiGet<T>(
   }
   return response.json() as Promise<T>;
 }
+
 
 export async function apiRequest<T>(
   path: string,

@@ -1,10 +1,12 @@
 import { ArrowDownAZ, ArrowDownZA } from "lucide-react";
 import type { DirectoryFilters, SortField } from "@/entities/user/model/types";
+
 type Props = {
   sortBy: SortField;
   direction: DirectoryFilters["sortDirection"];
   onChange: (patch: Partial<DirectoryFilters>) => void;
 };
+
 export function SortControl({ sortBy, direction, onChange }: Props) {
   return (
     <div className="sort-control">

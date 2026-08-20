@@ -5,6 +5,7 @@ type Props = {
   totalPages: number;
   onPageChange: (page: number) => void;
 };
+
 type PageItem = number | "ellipsis-start" | "ellipsis-end";
 
 function getPageItems(page: number, totalPages: number): PageItem[] {
