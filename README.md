@@ -1,6 +1,6 @@
 # PeopleSpace — Full-stack user directory
 
-A production-minded directory for discovering people by name, nationality, and shared interests. The application uses React, TypeScript, Express, and SQLite, with a responsive, virtualized paginated list and shareable URL state.
+A production-minded directory for discovering people by name, nationality, and shared interests. The application uses React, TypeScript, Express, and SQLite, with responsive virtualized infinite loading and shareable filter state.
 
 ## Quick start
 

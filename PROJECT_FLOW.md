@@ -10,8 +10,8 @@
 6. Express validates and normalizes every parameter. Unsupported sort fields fall back to `first_name`, page sizes are capped, and search wildcard characters are escaped.
 7. The service builds parameterized SQLite queries. No user value is interpolated into SQL; the sort column comes from a strict allow-list.
 8. Results return with `page`, `limit`, `total`, `totalPages`, and `hasMore`. Facets return the top 20 `{ value, count }` pairs.
-9. The client renders only visible rows using TanStack Virtual and displays numbered page controls from the returned pagination metadata.
-10. Choosing a page updates the URL. Changing search, filters, or sorting removes that page parameter, returns to page 1, refreshes facets, and updates the URL. Reloading or sharing that URL restores the same view after login.
+9. The client renders only visible rows using TanStack Virtual. Approaching the end of the loaded rows requests the next API page and appends it to the virtualized result set.
+10. Changing search, filters, or sorting creates a new infinite-query cache key, starts again from API page 1, refreshes facets, and updates the URL. Reloading or sharing that URL restores the same filtered view after login.
 11. Logout deletes the persisted session, clears the cookie, and returns the browser to the login page.
 
 ## 2. Data model
@@ -36,7 +36,6 @@ Facet queries are “self-excluding”: hobby counts retain text and nationality
 - `app`: providers, router boundary, entry point, and design tokens.
 - `pages/directory`: orchestrates the directory screen and its async states.
 - `widgets/directory-list`: virtualized result region.
-- `features/directory-pagination`: numbered page navigation and compact ellipsis behavior.
 - `features/directory-filters`: URL-backed filter state and filter panel.
 - `features/directory-sort`: sort interaction.
 - `features/auth`: session state and login/logout orchestration.
@@ -61,7 +60,7 @@ This keeps domain representation separate from user actions and page composition
 
 The desktop layout keeps discovery filters beside results. On small screens, filters move into an accessible drawer and active selections remain visible as removable chips. Search and sorting stay above the list.
 
-Initial loading uses structural skeletons; background refresh uses a small non-blocking indicator; pagination has an inline loading message; no matches provide a recovery action; API failures preserve a retry action. Images degrade to initials. Motion is reduced when the operating system requests it.
+Initial loading uses structural skeletons; background refresh uses a small non-blocking indicator; infinite loading has an inline progress state and retry action; no matches provide a recovery action; API failures preserve a retry action. Images degrade to initials. Motion is reduced when the operating system requests it.
 
 ## 7. Validation and tests
 

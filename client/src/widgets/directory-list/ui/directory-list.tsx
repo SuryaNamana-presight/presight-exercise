@@ -1,11 +1,25 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { User } from "@/entities/user/model/types";
 import { UserCard } from "@/entities/user/ui/user-card";
+import { Button } from "@/shared/ui/button";
+import { Spinner } from "@/shared/ui/spinner";
 
-type Props = { users: User[] };
+type Props = {
+  users: User[];
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  loadMoreError: boolean;
+  onLoadMore: () => void;
+};
 
-export function DirectoryList({ users }: Props) {
+export function DirectoryList({
+  users,
+  hasMore,
+  isLoadingMore,
+  loadMoreError,
+  onLoadMore,
+}: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: users.length,
@@ -15,6 +29,27 @@ export function DirectoryList({ users }: Props) {
   });
 
   const virtualItems = virtualizer.getVirtualItems();
+  const lastVisibleIndex = virtualItems.at(-1)?.index;
+
+  useEffect(() => {
+    if (
+      lastVisibleIndex !== undefined &&
+      lastVisibleIndex >= users.length - 6 &&
+      hasMore &&
+      !isLoadingMore &&
+      !loadMoreError
+    ) {
+      onLoadMore();
+    }
+  }, [
+    hasMore,
+    isLoadingMore,
+    lastVisibleIndex,
+    loadMoreError,
+    onLoadMore,
+    users.length,
+  ]);
+
   return (
     <div
       ref={parentRef}
@@ -40,6 +75,24 @@ export function DirectoryList({ users }: Props) {
           );
         })}
       </div>
+      {isLoadingMore && (
+        <div className="load-more">
+          <Spinner label="Loading more people…" />
+        </div>
+      )}
+      {loadMoreError && (
+        <div className="load-more-error">
+          <span>Couldn’t load more people.</span>
+          <Button onClick={onLoadMore}>Try again</Button>
+        </div>
+      )}
+      {!hasMore && users.length > 0 && (
+        <div className="end-list">
+          <span />
+          All {users.length} people loaded
+          <span />
+        </div>
+      )}
     </div>
   );
 }

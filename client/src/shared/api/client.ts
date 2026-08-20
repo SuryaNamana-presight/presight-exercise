@@ -28,7 +28,6 @@ export async function apiGet<T>(
   return response.json() as Promise<T>;
 }
 
-
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},

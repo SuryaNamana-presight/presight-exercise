@@ -14,7 +14,6 @@ import {
 import { AuthContext } from "./auth-context";
 import { useQueryClient } from "@tanstack/react-query";
 
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [account, setAccount] = useState<Account | null>(null);

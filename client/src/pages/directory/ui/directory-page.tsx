@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import { LogOut, Search, SlidersHorizontal, UsersRound, X } from "lucide-react";
 import { fetchFacets, fetchUsers } from "@/entities/user/api/user-api";
 import { useDirectoryFilters } from "@/features/directory-filters/model/use-directory-filters";
@@ -11,32 +14,10 @@ import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import { DirectoryList } from "@/widgets/directory-list/ui/directory-list";
 import { useAuth } from "@/features/auth/model/auth-context";
-import { Pagination } from "@/features/directory-pagination/ui/pagination";
 
 export function DirectoryPage() {
   const { account, logout } = useAuth();
   const { filters, update, toggle, clear, activeCount } = useDirectoryFilters();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = Math.max(
-    1,
-    Number.parseInt(searchParams.get("page") || "1", 10) || 1,
-  );
-
-  const setPage = useCallback(
-    (nextPage: number) => {
-      const next = new URLSearchParams(searchParams);
-
-      if (nextPage === 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(nextPage));
-      }
-
-      setSearchParams(next);
-    },
-    [searchParams, setSearchParams],
-  );
-
   const [search, setSearch] = useState(filters.search);
   const [mobileFilters, setMobileFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
@@ -48,10 +29,13 @@ export function DirectoryPage() {
     () => ({ ...filters, search: debouncedSearch }),
     [filters, debouncedSearch],
   );
-  const usersQuery = useQuery({
-    queryKey: ["users", requestFilters, page],
-    queryFn: ({ signal }) => fetchUsers(requestFilters, page, signal),
-    placeholderData: keepPreviousData,
+  const usersQuery = useInfiniteQuery({
+    queryKey: ["users", requestFilters],
+    queryFn: ({ pageParam, signal }) =>
+      fetchUsers(requestFilters, pageParam, signal),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore ? lastPage.pagination.page + 1 : undefined,
   });
   const facetsQuery = useQuery({
     queryKey: [
@@ -64,14 +48,10 @@ export function DirectoryPage() {
     queryFn: ({ signal }) => fetchFacets(requestFilters, signal),
     placeholderData: keepPreviousData,
   });
-  const users = usersQuery.data?.data ?? [];
-  const total = usersQuery.data?.pagination.total ?? 0;
-  const totalPages = usersQuery.data?.pagination.totalPages ?? 0;
+  const users = usersQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const total = usersQuery.data?.pages[0]?.pagination.total ?? 0;
   const isInitialLoading = usersQuery.isLoading && !users.length;
-  const error = usersQuery.error || facetsQuery.error;
-  useEffect(() => {
-    if (totalPages > 0 && page > totalPages) setPage(totalPages);
-  }, [page, setPage, totalPages]);
+  const error = facetsQuery.error || (!users.length ? usersQuery.error : null);
   const initials =
     account?.displayName
       .split(" ")
@@ -205,9 +185,9 @@ export function DirectoryPage() {
                   {total.toLocaleString()} {total === 1 ? "person" : "people"}
                 </span>
               </div>
-              {usersQuery.isFetching && !isInitialLoading && (
-                <Spinner label="Updating" />
-              )}
+              {usersQuery.isFetching &&
+                !usersQuery.isFetchingNextPage &&
+                !isInitialLoading && <Spinner label="Updating" />}
             </div>
             {error ? (
               <div className="state-card state-card--error">
@@ -250,16 +230,13 @@ export function DirectoryPage() {
                 <Button onClick={clear}>Clear filters</Button>
               </div>
             ) : (
-              <>
-                <div className="results-list-area">
-                  <DirectoryList users={users} />
-                </div>
-                <Pagination
-                  page={page}
-                  totalPages={totalPages}
-                  onPageChange={setPage}
-                />
-              </>
+              <DirectoryList
+                users={users}
+                hasMore={Boolean(usersQuery.hasNextPage)}
+                isLoadingMore={usersQuery.isFetchingNextPage}
+                loadMoreError={usersQuery.isFetchNextPageError}
+                onLoadMore={() => void usersQuery.fetchNextPage()}
+              />
             )}
           </section>
         </div>
