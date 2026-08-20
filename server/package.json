@@ -1,13 +1,18 @@
 {
-  "name": "presight-server",
+  "name": "people-space-server",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "dependencies": {
-    "express": "~5.1.0"
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/db/seed.js",
+    "test": "node --test"
   },
-  "devDependencies": {
-    "@types/express": "~5.0.1",
-    "@types/node-fetch": "~2.6.12"
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
   }
 }

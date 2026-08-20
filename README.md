@@ -1,119 +1,82 @@
-# Presight Frontend Exercise
+# PeopleSpace — Full-stack user directory
 
-Build a small full-stack user directory application. The goal is to evaluate how you design a searchable, filterable, paginated UI backed by persisted data and clear API boundaries.
+A production-minded directory for discovering people by name, nationality, and shared interests. The application uses React, TypeScript, Express, and SQLite, with responsive virtualized infinite loading and shareable filter state.
 
-The application should include:
+## Quick start
 
-- A React client.
-- A Node.js API server.
-- A SQLite database used as the source of truth for user data.
-- Docker configuration for running the application locally.
+Prerequisites: Node.js 22+ and npm 10+.
 
-## Scenario
-
-Users need to browse a large directory of people, search by name, and narrow results by nationality and hobbies. The filter sidebar should help users discover useful filters based on the result set they are currently viewing.
-
-## Requirements
-
-### Data Model
-
-Seed a SQLite database with enough records to make pagination, infinite scroll, search, and filter counts meaningful.
-
-Each user should have:
-
-- `avatar`
-- `first_name`
-- `last_name`
-- `age`
-- `nationality`
-- `hobbies`, from 0 to 10 hobbies per user
-
-Choose a data model that supports the required behavior.
-
-SQLite must be the persisted source of user data.
-
-### API
-
-Expose an API that supports:
-
-- Paginated user results.
-- Text filtering from user input across `first_name` and `last_name`.
-- Filtering by one or more nationalities.
-- Filtering by one or more hobbies.
-- Sorting by `first_name`, `last_name`, `age`, and `nationality`.
-- Pagination metadata so the client can determine whether more results are available.
-- Top 20 hobbies for the active text filter and filter state, including `{ value, count }`.
-- Top 20 nationalities for the active text filter and filter state, including `{ value, count }`.
-
-The top 20 values and counts must reflect the currently applied text filter and selected filters, not the global dataset.
-
-Filter semantics:
-
-- Multiple selected hobbies should match users who have all selected hobbies.
-- Multiple selected nationalities should match users from any selected nationality.
-- Text, hobby, and nationality filters should apply together.
-
-Sorting semantics:
-
-- Sorted results must be deterministic. Use `id` as a final tie-breaker when values are equal.
-- Pagination must respect the active sort without duplicate or missing users.
-
-### Client
-
-Build a React interface that includes:
-
-- A text filter input for `first_name` and `last_name`.
-- A virtualized, infinitely scrolling list of user cards.
-- A sidebar containing the top 20 hobbies and top 20 nationalities for the current result set, including counts.
-- Controls for applying and removing hobby and nationality filters.
-- Controls for choosing sort field and sort direction.
-- Loading, empty, and error states.
-- A responsive layout that remains usable on desktop and mobile.
-
-User cards should follow this structure:
-
-```text
-|----------------------------------|
-| avatar      first_name+last_name |
-|             nationality      age |
-|                                  |
-|             (2 hobbies) (+n)     |
-|----------------------------------|
+```bash
+npm install
+npm run seed
+npm run dev
 ```
 
-Show up to 2 hobbies on the card. If the user has more hobbies, display the remaining count as `+n`.
+Open `http://localhost:5173`. The API runs at `http://localhost:4000`. The server also seeds the database automatically when it starts if data is missing.
 
-Use a virtual scroll implementation for the list.
+Demo login:
 
-When the text filter or selected filters change, the client must refresh both:
+```text
+Email: demo@peoplespace.com
+Password: PeopleSpace@123
+```
 
-- The paginated user list.
-- The top 20 hobbies and nationalities in the sidebar.
+Passwords are stored as salted scrypt hashes. Authentication uses opaque server-side sessions and HTTP-only, SameSite cookies. Set `COOKIE_SECURE=true` when deploying behind HTTPS.
 
-The text filter value, selected hobbies, selected nationalities, sort field, and sort direction must be reflected in the URL query string. Reloading or sharing the URL should restore the same view state.
+Useful commands:
 
-## Implementation Notes
+```bash
+npm run build       # type-check and create the production client
+npm test            # API behavior tests plus client type-check
+npm start           # serve API and built client on :4000
+npm run seed        # recreate/ensure the 2,400-user data set
+```
 
-- Keep the database setup easy to run locally.
-- Include seed logic or a documented command that creates the SQLite database.
-- Include a `Dockerfile` and `docker-compose.yml` that can run the application locally.
+The generated SQLite file is `server/data/directory.db` and is intentionally git-ignored.
 
-## Evaluation Focus
+## Docker
 
-We will pay particular attention to:
+```bash
+docker compose up --build
+```
 
-- Correct data persistence and API behavior.
-- Correct filtering, sorting, pagination, and top 20 counts.
-- Smooth infinite scrolling with virtualization.
-- URL-synced state.
-- Clear loading, empty, and error states.
-- Easy local and Docker-based setup.
+Open `http://localhost:4000`. Database data is retained in the named `directory-data` volume. To start from a clean database, run `docker compose down -v` and rebuild.
 
-## Deliverables
+## API
 
-Please provide:
+- `GET /api/health`
+- `POST /api/auth/login`
+- `GET /api/auth/session`
+- `POST /api/auth/logout`
+- `GET /api/users`
+- `GET /api/users/facets`
 
-- Source code for the React client and Node.js server.
-- A `Dockerfile` and `docker-compose.yml`.
-- Instructions for setup, database seeding, and running locally.
-- Instructions for running with Docker Compose.
+User query parameters: `search`, repeated `nationality`, repeated `hobby`, repeated `ageRange` (for example `21-30`), `sortBy`, `sortDirection`, `page`, and `limit`. Arrays can also be comma-separated. Multiple age ranges use OR behavior. `sortBy` accepts `first_name`, `last_name`, `age`, or `nationality`; limit is capped at 50.
+
+Example:
+
+```text
+/api/users?search=an&nationality=Indian&hobby=Reading&hobby=Travel&sortBy=age&sortDirection=desc&page=1
+```
+
+See [PROJECT_FLOW.md](./PROJECT_FLOW.md) for architecture, request flow, SQL semantics, performance choices, and extension guidance.
+
+## Project structure
+
+The client follows Feature-Sliced Design:
+
+```text
+client/src/
+  app/       application bootstrap and global styles
+  pages/     login and directory page composition
+  widgets/   substantial page regions (virtual directory list)
+  features/  authentication, filters, sorting, and URL state
+  entities/  account/user data, API, model, and card UI
+  shared/    reusable API, hooks, and UI primitives
+```
+
+Dependencies flow downward only. The server separates config, database/seed, transport routes, query parsing, and business/query services.
+
+## Design and accessibility
+
+The UI uses a warm neutral canvas, deep green typography, restrained accent color, consistent 4/8px-derived spacing, 10–15px radii, visible focus states, semantic controls, reduced-motion support, loading skeletons, retryable error states, and mobile filter drawer behavior. The list only mounts visible cards plus a small overscan window.
